@@ -144,7 +144,7 @@ https://example.com/rss2.xml
   If encountered, the feed URL may be incorrect or temporarily unavailable.
 
 ## 📜 License
-This project is licensed under the **MIT License**.
+This project is licensed under the GNU General Public License v3.0. Copyright (c) 2025.
 
 ## 🎯 Contributing
 Pull requests are welcome! If you'd like to contribute:
