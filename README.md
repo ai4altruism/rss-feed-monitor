@@ -214,9 +214,9 @@ FILTER_PROMPT=Include only climate change news and environmental topics.
 ### OpenAI Models
 Choose models based on your needs:
 ```ini
-FILTER_MODEL=gpt-4-turbo
-GROUP_MODEL=gpt-4-turbo
-SUMMARIZE_MODEL=gpt-4-turbo
+FILTER_MODEL=gpt-4o
+GROUP_MODEL=gpt-4o
+SUMMARIZE_MODEL=gpt-4o
 ```
 
 ### Scheduler Settings
