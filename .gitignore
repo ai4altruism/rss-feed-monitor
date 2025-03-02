@@ -55,3 +55,7 @@ data/latest_summary.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# misc
+.gitignore
+setup.sh
