@@ -1,61 +1,27 @@
-# Environment variables
+# Local configuration files
 .env
 
-# Python
+# Python bytecode caches
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-.venv/
-venv/
 
-# Virtual Environment
-.venv/
+# Virtual environments
 venv/
+.venv/
 ENV/
 
-# Logs
-logs/*
+# Log files - ensure all logs are excluded
+logs/
 *.log
 
-# Cache
+# Application data
 data/cache.json
-
-# Generated data
 data/latest_summary.json
 
-# IDE related
+# IDE specific files
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
 
-# OS files
+# OS specific files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# misc
-.gitignore
-setup.sh
