@@ -9,6 +9,7 @@ RSS Feed Monitor is an AI-powered news aggregator that fetches, filters, groups,
 - **Groups** similar articles into meaningful topics with AI categorization
 - **Generates concise summaries** for each topic group
 - **Includes hyperlinks** to the original sources
+- **Eliminates duplicate articles** by tracking article history
 - **Multiple output methods**:
   - Console output (JSON)
   - Web dashboard with UI
@@ -22,18 +23,21 @@ RSS Feed Monitor is an AI-powered news aggregator that fetches, filters, groups,
 ### Local Development Setup
 
 1. **Clone the Repository**
+
 ```bash
 git clone https://github.com/yourusername/rss-feed-monitor.git
 cd rss-feed-monitor
 ```
 
 2. **Run the Setup Script**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
 The setup script will:
+
 - Create necessary directories
 - Set up an environment file from the template
 - Create a Python virtual environment
@@ -41,7 +45,7 @@ The setup script will:
 - Optionally build the Docker image
 
 3. **Configure Environment Variables**
-Edit the `.env` file that was created from `.env.example`:
+   Edit the `.env` file that was created from `.env.example`:
 
 ```ini
 # OpenAI API Key (required)
@@ -54,6 +58,9 @@ https://feeds.bbci.co.uk/news/rss.xml
 # Filtering prompt (modify as needed)
 FILTER_PROMPT=Only include articles related to AI and technology.
 
+# Article history settings
+HISTORY_RETENTION_DAYS=30
+
 # Optional: Slack, Email, Web Dashboard configuration
 ...
 ```
@@ -61,17 +68,20 @@ FILTER_PROMPT=Only include articles related to AI and technology.
 ### Docker Installation (Recommended for Production)
 
 1. **Configure Environment**
+
 ```bash
 cp .env.example .env
 # Edit .env with your settings
 ```
 
 2. **Build and Run with Docker Compose**
+
 ```bash
 docker-compose up -d rss-feed-monitor
 ```
 
 This will:
+
 - Build the Docker image
 - Run the container with the web dashboard
 - Mount volumes for logs, data, and configuration
@@ -95,6 +105,12 @@ python src/main.py --output slack
 # Send email report (requires email settings in .env)
 python src/main.py --output email
 
+# Ignore article history (process all articles, even if already published)
+python src/main.py --output slack --ignore-history
+
+# Set custom article history retention period (in days)
+python src/main.py --output slack --history-retention 60
+
 # Run scheduler (checks periodically)
 python src/scheduler.py --output slack --interval 30
 ```
@@ -106,7 +122,7 @@ python src/scheduler.py --output slack --interval 30
 docker-compose up -d rss-feed-monitor
 
 # Run web dashboard only (no processing)
-docker-compose up -d dashboard 
+docker-compose up -d dashboard
 
 # Run scheduler (periodic checks with Slack output)
 docker-compose up -d scheduler
@@ -117,6 +133,7 @@ docker-compose up -d scheduler
 Access the web dashboard at http://localhost:5000
 
 The dashboard shows:
+
 - Grouped topics with summaries
 - Links to original articles
 - Auto-refresh every 30 minutes
@@ -124,6 +141,7 @@ The dashboard shows:
 ## 🔀 Output Methods
 
 ### Console Output (Default)
+
 Prints JSON output to the console:
 
 ```json
@@ -133,7 +151,10 @@ Prints JSON output to the console:
       "topic": "AI and Technology",
       "summary": "Recent developments in AI show...",
       "articles": [
-        {"title": "New AI breakthrough...", "link": "https://example.com/article1"}
+        {
+          "title": "New AI breakthrough...",
+          "link": "https://example.com/article1"
+        }
       ]
     }
   ]
@@ -141,22 +162,49 @@ Prints JSON output to the console:
 ```
 
 ### Web Dashboard
+
 Displays a responsive web UI with:
+
 - Topic cards with summaries
 - Clickable article links
 - Last update timestamp
 
 ### Slack Integration
+
 Posts formatted summaries to a Slack channel with:
+
 - Topic headers and summaries
 - Article links
 - Requires Slack webhook URL
 
 ### Email Reports
+
 Sends HTML emails with:
+
 - Formatted topic summaries
 - Article links
 - Configurable recipients
+
+## 🔄 Article History
+
+The RSS Feed Monitor now tracks published articles to ensure each update contains only new content:
+
+- **Eliminates duplicate stories**: Articles are only processed once, even across multiple runs
+- **Configurable retention**: Set how long to remember published articles (default: 30 days)
+- **Automatic cleanup**: Old entries are periodically removed to prevent unlimited growth
+- **Override option**: Use `--ignore-history` flag when testing or to force reprocessing
+
+Configure the retention period in `.env`:
+
+```ini
+HISTORY_RETENTION_DAYS=30
+```
+
+Or via command line:
+
+```bash
+python src/main.py --history-retention 60
+```
 
 ## 📁 Project Structure
 
@@ -170,8 +218,9 @@ rss-feed-monitor/
 ├── setup.sh                 # Setup script
 │
 ├── data/                    # Persistent data storage
-│   └── cache.json           # RSS feed cache
-│   └── latest_summary.json  # Latest summary data
+│   ├── cache.json           # RSS feed cache
+│   ├── latest_summary.json  # Latest summary data
+│   └── article_history.json # Published article tracking
 │
 ├── logs/                    # Application logs
 │   └── app.log              # Log file
@@ -182,6 +231,7 @@ rss-feed-monitor/
     ├── llm_filter.py        # Article filtering
     ├── summarizer.py        # Group and summarize
     ├── utils.py             # Utilities
+    ├── article_history.py   # Article history tracking
     ├── slack_publisher.py   # Slack integration
     ├── email_reporter.py    # Email reports
     ├── web_dashboard.py     # Web interface
@@ -194,25 +244,40 @@ rss-feed-monitor/
 ## ⚙ Configuration
 
 ### RSS Feeds
+
 Add RSS feeds in `.env` using **comma-separated values**:
+
 ```ini
 RSS_FEEDS=https://example.com/rss1.xml,https://example.com/rss2.xml
 ```
 
 Or **multi-line format**:
+
 ```ini
 RSS_FEEDS=https://example.com/rss1.xml
 https://example.com/rss2.xml
 ```
 
 ### Filter Criteria
+
 Modify `FILTER_PROMPT` in `.env`:
+
 ```ini
 FILTER_PROMPT=Include only climate change news and environmental topics.
 ```
 
+### Article History
+
+Configure the article history retention period:
+
+```ini
+HISTORY_RETENTION_DAYS=30
+```
+
 ### OpenAI Models
+
 Choose models based on your needs:
+
 ```ini
 FILTER_MODEL=gpt-4o
 GROUP_MODEL=gpt-4o
@@ -220,19 +285,25 @@ SUMMARIZE_MODEL=gpt-4o
 ```
 
 ### Scheduler Settings
+
 Set the checking interval (in minutes):
+
 ```ini
 PROCESS_INTERVAL=60
 ```
 
 ### Slack Integration
+
 Get a webhook URL from Slack API:
+
 ```ini
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 ```
 
 ### Email Configuration
+
 Configure SMTP settings for email delivery:
+
 ```ini
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -247,11 +318,13 @@ EMAIL_RECIPIENTS=recipient1@example.com,recipient2@example.com
 The application includes three Docker services:
 
 1. **rss-feed-monitor**: Main service with web dashboard
+
    ```bash
    docker-compose up -d rss-feed-monitor
    ```
 
 2. **dashboard**: Web dashboard only (no processing)
+
    ```bash
    docker-compose up -d dashboard
    ```
@@ -266,23 +339,34 @@ The application includes three Docker services:
 ### Common Issues
 
 #### OpenAI API Errors
+
 - **Error**: Authentication or token limit issues
 - **Fix**: Check your API key and adjust the prompts if reaching token limits
 
 #### Web Dashboard Not Showing Data
+
 - **Error**: "No summaries available yet" message
 - **Fix**: Run the application with `--output web` to generate summaries
 
+#### No New Articles Appearing
+
+- **Error**: Updates show "No new articles found since last update"
+- **Fix**: Use `--ignore-history` flag to force processing all articles, or wait for genuinely new content
+
 #### Slack Integration Not Working
+
 - **Error**: Failed to publish to Slack
 - **Fix**: Verify your webhook URL in `.env` and check Slack app permissions
 
 #### Scheduling Issues
+
 - **Error**: Scheduler not running at expected intervals
 - **Fix**: Check `PROCESS_INTERVAL` in `.env` and verify logs
 
 ### Debugging Logs
+
 Check logs for detailed error information:
+
 ```bash
 # Local logs
 cat logs/app.log
@@ -308,4 +392,5 @@ Pull requests are welcome! To contribute:
 ## 📩 Contact
 
 For issues or questions, please open a GitHub issue or contact:
+
 - **Email**: team@ai4altruism.org
