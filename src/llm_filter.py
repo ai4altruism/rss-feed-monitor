@@ -3,6 +3,7 @@
 from openai import OpenAI
 import logging
 
+
 def filter_stories(articles, filter_prompt, filter_model, openai_api_key):
     """
     Filters articles using an LLM based on a user-specified prompt.
@@ -34,11 +35,14 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key):
             response = client.chat.completions.create(
                 model=filter_model,
                 messages=[
-                    {"role": "system", "content": "Evaluate whether this article is relevant."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Evaluate whether this article is relevant.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=5,
-                temperature=0.0
+                temperature=0.0,
             )
 
             answer = response.choices[0].message.content.strip().lower()
@@ -46,6 +50,8 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key):
                 filtered_articles.append(article)
 
         except Exception as e:
-            logging.error(f"LLM filtering error for article '{article.get('title')}': {e}")
+            logging.error(
+                f"LLM filtering error for article '{article.get('title')}': {e}"
+            )
 
     return filtered_articles
