@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+  rss-feed-monitor:
+    build: .
+    volumes:
+      - ./.env:/app/.env
+      - ./data:/app/data:rw
+      - ./logs:/app/logs
+    ports:
+      - "5000:5000"
+    command: --output web
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+
+  # Web dashboard only mode
+  dashboard:
+    build: .
+    volumes:
+      - ./.env:/app/.env
+      - ./data:/app/data:rw
+      - ./logs:/app/logs
+    ports:
+      - "5001:5000"
+    command: --web-server
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    
+  # Scheduled execution service
+  scheduler:
+    build: .
+    volumes:
+      - ./.env:/app/.env
+      - ./data:/app/data:rw
+      - ./logs:/app/logs
+    command: --output slack
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    # Run at specified interval using the PROCESS_INTERVAL from .env
+    entrypoint: >
+      sh -c '
+        # Extract interval from .env (default to 60 minutes if not found)
+        INTERVAL=$$(grep -oP "PROCESS_INTERVAL=\\K\\d+" /app/.env 2>/dev/null || echo 60);
+        echo "Running with interval of $${INTERVAL} minutes";
+        
+        # Initial run
+        python src/main.py --output slack;
+        
+        # Then run based on the specified interval
+        while true; do
+          echo "Waiting $${INTERVAL} minutes until next run...";
+          sleep $$(($$INTERVAL * 60));
+          echo "Starting scheduled run...";
+          python src/main.py --output slack;
+        done
+      '

@@ -28,9 +28,13 @@ class ArticleHistory:
         if os.path.exists(self.history_file):
             try:
                 with open(self.history_file, "r") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    logging.info(f"Loaded article history with {len(data.get('articles', {}))} articles from {self.history_file}")
+                    return data
             except Exception as e:
                 logging.error(f"Error loading article history: {e}")
+        else:
+            logging.info(f"Article history file {self.history_file} not found, creating new history")
         return {"last_cleaned": datetime.now().isoformat(), "articles": {}}
 
     def _save_history(self):
@@ -41,6 +45,7 @@ class ArticleHistory:
 
             with open(self.history_file, "w") as f:
                 json.dump(self.history, f)
+            logging.info(f"Saved article history with {len(self.history.get('articles', {}))} articles to {self.history_file}")
         except Exception as e:
             logging.error(f"Error saving article history: {e}")
 
@@ -81,7 +86,10 @@ class ArticleHistory:
             bool: True if article was previously published
         """
         url = article.get("link", "")
-        return url in self.history["articles"]
+        is_pub = url in self.history["articles"]
+        if is_pub:
+            logging.debug(f"Article already published: {article.get('title', 'Untitled')}")
+        return is_pub
 
     def mark_as_published(self, articles):
         """
@@ -100,6 +108,7 @@ class ArticleHistory:
                     "timestamp": now,
                 }
 
+        logging.info(f"Marked {len(articles)} articles as published")
         self._save_history()
         self._clean_old_entries()
 
@@ -113,4 +122,14 @@ class ArticleHistory:
         Returns:
             list: List of unpublished articles
         """
-        return [article for article in articles if not self.is_published(article)]
+        if not articles:
+            logging.info("No articles to filter")
+            return []
+            
+        total_articles = len(articles)
+        filtered_articles = [article for article in articles if not self.is_published(article)]
+        filtered_count = total_articles - len(filtered_articles)
+        
+        logging.info(f"Filtered out {filtered_count} of {total_articles} articles as previously published")
+        
+        return filtered_articles

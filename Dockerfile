@@ -10,8 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY .env.example ./.env.example
 
-# Create necessary directories
+# Create necessary directories with proper permissions
 RUN mkdir -p logs data
+RUN chmod -R 777 logs data
 
 # Create templates directory for Flask
 RUN mkdir -p src/templates
