@@ -477,7 +477,15 @@ rm -rf data/* logs/*
 
 ## 📜 License
 
-This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.
+This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html). Copyright (c) 2025 AI for Altruism Inc.
+
+When using or distributing this software, please attribute as follows:
+
+```
+RSS Feed Monitor
+Copyright (c) 2025 AI for Altruism Inc
+License: GNU GPL v3.0
+```
 
 ## 🎯 Contributing
 
