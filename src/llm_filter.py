@@ -41,8 +41,7 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key):
                     },
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=5,
-                temperature=0.0,
+                max_completion_tokens=5,
             )
 
             answer = response.choices[0].message.content.strip().lower()
