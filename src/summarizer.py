@@ -136,8 +136,7 @@ Articles:
                     {"role": "system", "content": "You are a JSON formatting expert that groups news articles into topics. Return ONLY valid, well-formatted JSON with no explanations."},
                     {"role": "user", "content": group_prompt}
                 ],
-                max_tokens=2000,  # Increased token limit
-                temperature=0.0,  # Zero temperature for maximum determinism
+                max_completion_tokens=2000,  # Increased token limit
                 response_format={"type": "json_object"}  # Enforce JSON response format if available
             )
 
@@ -221,8 +220,7 @@ RESPONSE FORMAT: Just the summary paragraph with no introduction or explanation.
                     {"role": "system", "content": "You create brief, informative summaries of news articles in a single paragraph."},
                     {"role": "user", "content": summarize_prompt}
                 ],
-                max_tokens=250,
-                temperature=0.5  # Balanced between creativity and consistency
+                max_completion_tokens=250,
             )
 
             summary_text = summarize_response.choices[0].message.content.strip() if summarize_response.choices else ""

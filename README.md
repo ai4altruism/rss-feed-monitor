@@ -279,9 +279,9 @@ HISTORY_RETENTION_DAYS=30
 Choose models based on your needs:
 
 ```ini
-FILTER_MODEL=gpt-4o
-GROUP_MODEL=gpt-4o
-SUMMARIZE_MODEL=gpt-4o
+FILTER_MODEL=gpt-5-mini
+GROUP_MODEL=gpt-5-mini
+SUMMARIZE_MODEL=gpt-5-mini
 ```
 
 ### Scheduler Settings
@@ -415,6 +415,17 @@ docker-compose up -d
 ```
 
 ## 🛠 Troubleshooting
+
+### GPT-5 Model Compatibility
+
+This application supports OpenAI's GPT-5 series models (gpt-5-mini, gpt-5, gpt-5-nano). Key compatibility notes:
+
+- **Parameter Changes**: GPT-5 models use `max_completion_tokens` instead of `max_tokens`
+- **Temperature Restrictions**: GPT-5 models only support default temperature (no custom temperature values)
+- **Enhanced Reasoning**: GPT-5 models include internal reasoning tokens for improved accuracy
+- **Token Limits**: Input: 272,000 tokens, Output: 128,000 completion tokens, Total context: 400,000 tokens
+
+If you encounter parameter-related errors, ensure you're using a GPT-5 compatible model configuration.
 
 ### Common Issues
 

@@ -56,6 +56,8 @@ Environment variables are loaded from `.env` file:
 - `PROCESS_INTERVAL` - Scheduler interval in minutes (default: 60)
 - `HISTORY_RETENTION_DAYS` - Article history retention period (default: 30)
 - OpenAI model selection: `FILTER_MODEL`, `GROUP_MODEL`, `SUMMARIZE_MODEL`
+  - Default models: `gpt-5-mini` (supports GPT-5 series with enhanced reasoning)
+  - GPT-5 compatibility: Uses `max_completion_tokens` parameter, default temperature only
 - Slack: `SLACK_WEBHOOK_URL`
 - Email: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_RECIPIENTS`
 
