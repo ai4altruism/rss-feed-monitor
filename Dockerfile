@@ -23,7 +23,7 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # Expose port for web dashboard
-EXPOSE 5000
+EXPOSE 5001
 
 # Create a non-root user to run the application
 RUN useradd -m appuser

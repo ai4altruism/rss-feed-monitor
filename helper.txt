@@ -1,0 +1,91 @@
+GPT-5 Model Migration Helper
+============================
+
+SUMMARY:
+OpenAI's GPT-5 series models (gpt-5, gpt-5-mini, gpt-5-nano) introduced in 2025 require API parameter changes due to their reasoning architecture. Two critical parameters changed that break existing code.
+
+WHY CHANGES WERE NECESSARY:
+1. GPT-5 models use internal "reasoning tokens" not visible to users
+2. OpenAI deprecated max_tokens in favor of max_completion_tokens for clarity
+3. GPT-5 models only support default temperature=1, not custom temperature values
+
+ERRORS YOU'LL SEE:
+- "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
+- "Unsupported value: 'temperature' does not support 0 with this model. Only the default (1) value is supported."
+
+STEP-BY-STEP MIGRATION GUIDE:
+=============================
+
+1. IDENTIFY AFFECTED CODE:
+   Search for these patterns in your codebase:
+   ```bash
+   grep -n "max_tokens" **/*.py
+   grep -n "temperature.*0" **/*.py
+   ```
+
+2. PARAMETER CHANGES REQUIRED:
+   
+   OLD (GPT-4 compatible):
+   ```python
+   response = client.chat.completions.create(
+       model="gpt-4o-mini",
+       messages=[...],
+       temperature=0,
+       max_tokens=4000
+   )
+   ```
+   
+   NEW (GPT-5 compatible):
+   ```python
+   response = client.chat.completions.create(
+       model="gpt-5-mini", 
+       messages=[...],
+       max_completion_tokens=4000
+   )
+   ```
+
+3. SPECIFIC CHANGES:
+   - Replace: max_tokens → max_completion_tokens
+   - Remove: temperature=0 (or any non-default temperature)
+   - Keep: All other parameters work the same
+
+4. TOKEN LIMITS FOR GPT-5:
+   - Input: 272,000 tokens max
+   - Output: 128,000 completion tokens max  
+   - Total context: 400,000 tokens
+
+5. TESTING:
+   - Update .env file with new model name
+   - Test API calls work without parameter errors
+   - Verify application functionality unchanged
+
+6. DEPLOYMENT:
+   - Rebuild Docker containers if using containerized deployment
+   - Update documentation with new model compatibility notes
+
+BACKWARD COMPATIBILITY:
+======================
+If supporting both model generations:
+```python
+# Conditional parameter handling
+api_params = {
+    "model": model_name,
+    "messages": messages,
+}
+
+if model_name.startswith("gpt-5"):
+    api_params["max_completion_tokens"] = 4000
+else:
+    api_params["max_tokens"] = 4000
+    api_params["temperature"] = 0
+
+response = client.chat.completions.create(**api_params)
+```
+
+ALTERNATIVE GPT-5 PARAMETERS:
+============================
+Instead of temperature, GPT-5 offers:
+- verbosity: "low", "medium", "high" (controls response length)
+- reasoning_effort: "minimal", "low", "medium", "high" (controls reasoning depth)
+
+This migration is required for any codebase upgrading to GPT-5 series models.

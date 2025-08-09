@@ -42,7 +42,7 @@ def parse_arguments():
         "--web-server", action="store_true", help="Run the web dashboard server"
     )
     parser.add_argument(
-        "--port", type=int, default=5000, help="Port for web dashboard (default: 5000)"
+        "--port", type=int, default=5001, help="Port for web dashboard (default: 5001)"
     )
     parser.add_argument(
         "--history-retention",
@@ -90,14 +90,17 @@ def main():
         env_vars.get("HISTORY_RETENTION_DAYS", 30)
     )
 
+    # Get web dashboard port from env if not specified in args
+    web_port = args.port if args.port != 5001 else int(env_vars.get("WEB_DASHBOARD_PORT", 5001))
+
     if not openai_api_key:
         logger.error("OPENAI_API_KEY is not set in the .env file")
         return
 
     # Check if we should run the web server only
     if args.web_server and run_dashboard:
-        logger.info(f"Starting web dashboard server on port {args.port}...")
-        run_dashboard(port=args.port, debug=True)
+        logger.info(f"Starting web dashboard server on port {web_port}...")
+        run_dashboard(port=web_port, debug=True)
         return
 
     # Initialize article history
@@ -143,6 +146,11 @@ def main():
     )
     logger.info(f"{len(filtered_articles)} articles remain after filtering.")
 
+    # If no articles remain after filtering, exit early without sending reports
+    if not filtered_articles:
+        logger.info("No articles meet the filtering criteria. No reports will be sent.")
+        return
+
     # Group and summarize
     logger.info("Grouping and summarizing articles...")
     summary = group_and_summarize(
@@ -168,8 +176,8 @@ def main():
 
             # Run web server if requested
             if run_dashboard:
-                logger.info(f"Starting web dashboard server on port {args.port}...")
-                run_dashboard(port=args.port, debug=True, use_reloader=False)
+                logger.info(f"Starting web dashboard server on port {web_port}...")
+                run_dashboard(port=web_port, debug=True, use_reloader=False)
 
     elif args.output == "slack":
         if publish_to_slack:

@@ -74,10 +74,14 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
-2. **Build and Run with Docker Compose**
+2. **Build and Run with Docker**
 
 ```bash
-docker-compose up -d rss-feed-monitor
+# Build the Docker image
+docker build -t rss-feed-monitor:latest .
+
+# Run with web dashboard
+docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs -p 5001:5001 --name rss-feed-monitor --restart unless-stopped rss-feed-monitor:latest --output web
 ```
 
 This will:
@@ -96,7 +100,7 @@ Use one of the following commands:
 # Console output (default)
 python src/main.py
 
-# Web dashboard at http://localhost:5000
+# Web dashboard at http://localhost:5001
 python src/main.py --output web
 
 # Post to Slack (requires SLACK_WEBHOOK_URL in .env)
@@ -118,19 +122,22 @@ python src/scheduler.py --output slack --interval 30
 ### Running with Docker
 
 ```bash
+# Run once with console output
+docker run --rm --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs rss-feed-monitor:latest --output console
+
+# Run once with Slack output
+docker run --rm --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs rss-feed-monitor:latest --output slack
+
+# Run scheduler daemon (periodic checks with Slack output)
+docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs --name news_scheduler --restart unless-stopped --entrypoint python rss-feed-monitor:latest src/scheduler.py --output slack --interval 60
+
 # Run with web dashboard
-docker-compose up -d rss-feed-monitor
-
-# Run web dashboard only (no processing)
-docker-compose up -d dashboard
-
-# Run scheduler (periodic checks with Slack output)
-docker-compose up -d scheduler
+docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs -p 5001:5001 --name rss-web-dashboard --restart unless-stopped rss-feed-monitor:latest --output web
 ```
 
 ### Web Dashboard
 
-Access the web dashboard at http://localhost:5000
+Access the web dashboard at http://localhost:5001
 
 The dashboard shows:
 
@@ -213,7 +220,7 @@ rss-feed-monitor/
 ├── .env                     # Environment variables
 ├── .env.example             # Template for environment variables
 ├── Dockerfile               # Container configuration
-├── docker-compose.yml       # Multi-container configuration
+├── Dockerfile               # Container build configuration
 ├── requirements.txt         # Python dependencies
 ├── setup.sh                 # Setup script
 │
@@ -315,23 +322,23 @@ EMAIL_RECIPIENTS=recipient1@example.com,recipient2@example.com
 
 ## 🐳 Docker Deployment
 
-The application includes three Docker services:
+The application can be run in different modes:
 
-1. **rss-feed-monitor**: Main service with web dashboard
+1. **One-time execution**: Run the monitor once and exit
 
    ```bash
-   docker-compose up -d rss-feed-monitor
+   docker run --rm --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs rss-feed-monitor:latest --output console
    ```
 
-2. **dashboard**: Web dashboard only (no processing)
+2. **Web dashboard**: Serve the dashboard interface
 
    ```bash
-   docker-compose up -d dashboard
+   docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs -p 5001:5001 --name rss-web-dashboard --restart unless-stopped rss-feed-monitor:latest --output web
    ```
 
-3. **scheduler**: Periodic processing with Slack output
+3. **Scheduler daemon**: Run continuously with periodic execution
    ```bash
-   docker-compose up -d scheduler
+   docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs --name news_scheduler --restart unless-stopped --entrypoint python rss-feed-monitor:latest src/scheduler.py --output slack --interval 60
    ```
 
 ## 🔄 Managing Your Deployment
@@ -342,7 +349,8 @@ Follow these steps to stop, update configuration, clear history, and restart:
 
 ```bash
 # 1. Stop the container
-docker-compose down
+docker stop news_scheduler
+docker rm news_scheduler
 
 # 2. Update .env file if needed
 nano .env
@@ -351,10 +359,10 @@ nano .env
 rm -f data/article_history.json
 
 # 4. Start the container
-docker-compose up -d
+docker run -d --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs --name news_scheduler --restart unless-stopped --entrypoint python rss-feed-monitor:latest src/scheduler.py --output slack --interval 60
 
 # 5. Check logs to verify it's running correctly
-docker-compose logs -f
+docker logs news_scheduler -f
 ```
 
 ### Common Management Tasks
@@ -362,17 +370,26 @@ docker-compose logs -f
 #### Starting and Stopping
 
 ```bash
-# Stop containers (preserves data)
-docker-compose stop
+# Stop container (preserves data)
+docker stop news_scheduler2
 
-# Stop and remove containers (still preserves volume data)
-docker-compose down
+# Stop and remove container
+docker stop news_scheduler2
+docker rm news_scheduler2
 
-# Start containers
-docker-compose start
+# Start container
+docker start news_scheduler2
 
 # Restart with latest configuration
-docker-compose up -d
+docker stop news_scheduler2
+docker rm news_scheduler2
+docker run -d \
+  --env-file /path/to/your/.env \
+  -v /path/to/your/.env:/app/.env \
+  --name news_scheduler2 \
+  --restart unless-stopped \
+  --entrypoint python \
+  rss-feed-monitor:latest src/scheduler.py --output slack --interval 60
 ```
 
 #### Managing Article History
@@ -382,23 +399,23 @@ docker-compose up -d
 rm -f data/article_history.json
 
 # Run once ignoring history
-docker-compose exec scheduler python src/main.py --output slack --ignore-history
+docker exec news_scheduler2 python src/main.py --output slack --ignore-history
 
 # Check history status
-docker-compose exec scheduler python src/check_history.py
+docker exec news_scheduler2 python src/check_history.py
 ```
 
 #### Monitoring
 
 ```bash
 # View recent logs
-docker-compose logs
+docker logs news_scheduler2
 
 # Follow logs in real-time
-docker-compose logs -f
+docker logs news_scheduler2 -f
 
 # View specific number of lines
-docker-compose logs --tail=100
+docker logs news_scheduler2 --tail=100
 ```
 
 #### Updating the Container
@@ -448,7 +465,7 @@ If you encounter parameter-related errors, ensure you're using a GPT-5 compatibl
 
 - **Error**: Duplicate articles appearing in every update
 - **Fix**: Check if `data/article_history.json` exists and has proper permissions
-- **Diagnostic**: Run `docker-compose exec scheduler python src/check_history.py`
+- **Diagnostic**: Run `docker exec news_scheduler2 python src/check_history.py`
 
 #### Slack Integration Not Working
 
@@ -469,7 +486,7 @@ Check logs for detailed error information:
 cat logs/app.log
 
 # Docker logs
-docker-compose logs rss-feed-monitor
+docker logs news_scheduler2
 ```
 
 ## 📊 Data Persistence

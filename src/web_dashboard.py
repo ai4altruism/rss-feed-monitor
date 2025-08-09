@@ -47,7 +47,7 @@ def api_summary():
     except (FileNotFoundError, json.JSONDecodeError):
         return jsonify({"topics": [], "generated_at": datetime.now().isoformat()})
 
-def run_dashboard(host='0.0.0.0', port=5000, debug=False, use_reloader=False):
+def run_dashboard(host='0.0.0.0', port=5001, debug=False, use_reloader=False):
     """Run the dashboard server."""
     app.run(host=host, port=port, debug=debug, use_reloader=use_reloader)
 
