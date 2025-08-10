@@ -55,11 +55,53 @@ def parse_arguments():
         action="store_true",
         help="Ignore article history (process all articles)",
     )
+    
+    # New testing and diagnostic flags
+    parser.add_argument(
+        "--test-filter",
+        action="store_true",
+        help="Run the filter test against curated test articles",
+    )
+    parser.add_argument(
+        "--review-mode",
+        action="store_true",
+        help="Launch interactive article review tool",
+    )
+    parser.add_argument(
+        "--analyze-feeds",
+        action="store_true",
+        help="Analyze RSS feeds for disaster content patterns",
+    )
+    parser.add_argument(
+        "--verbose-filter",
+        action="store_true",
+        help="Enable detailed logging for filter decisions",
+    )
+    
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
+
+    # Handle testing and diagnostic modes first
+    if args.test_filter:
+        from test_filter import main as test_filter_main
+        logger = setup_logger()
+        logger.info("Running filter test...")
+        return test_filter_main()
+    
+    if args.review_mode:
+        from review_articles import main as review_main
+        logger = setup_logger() 
+        logger.info("Starting interactive article review...")
+        return review_main()
+    
+    if args.analyze_feeds:
+        from analyze_feeds import main as analyze_main
+        logger = setup_logger()
+        logger.info("Starting feed analysis...")
+        return analyze_main()
 
     # Load environment variables manually to properly handle multi-line values
     env_vars = dotenv_values(".env")
@@ -141,8 +183,11 @@ def main():
 
     # Filter articles using LLM
     logger.info("Filtering articles using LLM...")
+    if args.verbose_filter:
+        logger.info("Verbose filtering enabled - detailed decisions will be logged")
+    
     filtered_articles = filter_stories(
-        unique_articles, filter_prompt, filter_model, openai_api_key
+        unique_articles, filter_prompt, filter_model, openai_api_key, verbose=args.verbose_filter
     )
     logger.info(f"{len(filtered_articles)} articles remain after filtering.")
 

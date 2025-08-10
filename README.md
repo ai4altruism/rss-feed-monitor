@@ -283,13 +283,18 @@ HISTORY_RETENTION_DAYS=30
 
 ### OpenAI Models
 
-Choose models based on your needs:
+**Recommended Configuration** (optimal performance):
 
 ```ini
-FILTER_MODEL=gpt-5-mini
+FILTER_MODEL=gpt-4o-mini
 GROUP_MODEL=gpt-5-mini
-SUMMARIZE_MODEL=gpt-5-mini
+SUMMARIZE_MODEL=gpt-4o-mini
 ```
+
+**Important**: 
+- **GPT-5-mini filtering**: Too restrictive, rejects obvious disaster articles
+- **GPT-5-mini summarization**: Uses all completion tokens for internal reasoning, returns empty content
+- **Optimal approach**: Use GPT-4o-mini for filtering and summarization, GPT-5-mini only for grouping tasks that benefit from enhanced reasoning
 
 ### Scheduler Settings
 
@@ -442,7 +447,11 @@ This application supports OpenAI's GPT-5 series models (gpt-5-mini, gpt-5, gpt-5
 - **Enhanced Reasoning**: GPT-5 models include internal reasoning tokens for improved accuracy
 - **Token Limits**: Input: 272,000 tokens, Output: 128,000 completion tokens, Total context: 400,000 tokens
 
-If you encounter parameter-related errors, ensure you're using a GPT-5 compatible model configuration.
+**⚠️ Important Filtering Behavior**: GPT-5-mini is overly restrictive for binary filtering tasks and will reject obvious disaster articles that should pass. For optimal results:
+- Use **GPT-4o-mini** for `FILTER_MODEL` 
+- Use **GPT-5-mini** for `GROUP_MODEL` and `SUMMARIZE_MODEL` to leverage enhanced reasoning
+
+If you encounter filtering issues where obvious disaster articles are rejected, switch the filter model to GPT-4o-mini.
 
 ### Common Issues
 
@@ -455,6 +464,16 @@ If you encounter parameter-related errors, ensure you're using a GPT-5 compatibl
 
 - **Error**: "No summaries available yet" message
 - **Fix**: Run the application with `--output web` to generate summaries
+
+#### No Articles Passing Filter (0 Results)
+
+- **Error**: Filter consistently produces 0 articles even when disaster news exists
+- **Root Cause**: GPT-5-mini is too restrictive for filtering tasks
+- **Fix**: Change `FILTER_MODEL=gpt-4o-mini` in your `.env` file
+- **Diagnostic**: Run `python src/test_filter.py --verbose` to test filter accuracy
+- **Additional Tools**: 
+  - `python src/analyze_feeds.py` - Check what disaster content exists in your feeds
+  - `python src/review_articles.py --auto-fetch` - Manually review filter decisions
 
 #### No New Articles Appearing
 
