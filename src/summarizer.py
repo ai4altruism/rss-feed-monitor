@@ -206,28 +206,34 @@ Articles:
         ])
 
         summarize_prompt = f"""
-Summarize these articles about "{topic.get('topic')}" in ONE concise paragraph:
+Write a single paragraph summary about {topic.get('topic')} based on these articles:
 
 {combined_text}
 
-RESPONSE FORMAT: Just the summary paragraph with no introduction or explanation.
-"""
+Write a flowing narrative paragraph that combines information from all articles. Include key details like locations, casualties, and current status. Do not use lists or bullet points - write in complete sentences that flow together.
+
+Summary:"""
 
         try:
             summarize_response = client.chat.completions.create(
                 model=summarize_model,
                 messages=[
-                    {"role": "system", "content": "You create brief, informative summaries of news articles in a single paragraph."},
+                    {"role": "system", "content": "You write concise narrative news summaries in paragraph format. Combine information from multiple sources into flowing prose, not lists."},
                     {"role": "user", "content": summarize_prompt}
                 ],
-                max_completion_tokens=250,
+                max_completion_tokens=400,
             )
 
             summary_text = summarize_response.choices[0].message.content.strip() if summarize_response.choices else ""
             
+            # Debug logging
+            logging.info(f"Summarization response for '{topic.get('topic')}': {len(summary_text)} chars")
             if not summary_text:
                 logging.error(f"Summarization API returned an empty response for topic: {topic.get('topic')}")
+                logging.error(f"Response object: {summarize_response}")
                 summary_text = f"A collection of {len(articles_in_topic)} articles about {topic.get('topic')}."
+            else:
+                logging.info(f"Summary preview: {summary_text[:100]}...")
 
             # Clean up summary to remove any markdown formatting
             summary_text = re.sub(r'^[#*"\s]*(Summary:|Topic:|Articles:)\s*', '', summary_text)

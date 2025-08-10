@@ -25,6 +25,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `rm -f data/article_history.json` - Clear article history
 - `python src/check_history.py` - Check history status
 
+### Testing and Diagnostics
+- `python src/test_filter.py` - Test filter against curated disaster articles
+- `python src/test_filter.py --verbose` - Test filter with detailed output
+- `python src/review_articles.py --auto-fetch` - Interactive review of current articles  
+- `python src/review_articles.py --auto-fetch --export-only` - Export filter results to JSON
+- `python src/analyze_feeds.py` - Analyze RSS feeds for disaster content patterns
+- `python src/analyze_feeds.py --export` - Export feed analysis to JSON
+- `python src/main.py --test-filter` - Run filter test via main script
+- `python src/main.py --review-mode --auto-fetch` - Launch interactive review mode
+- `python src/main.py --analyze-feeds` - Analyze feeds via main script  
+- `python src/main.py --verbose-filter --ignore-history` - Enable detailed filter logging
+- `python src/test_summarization.py` - Test summarization output format with sample articles
+
 ## Architecture
 
 ### Core Pipeline
@@ -42,6 +55,13 @@ The application follows a linear processing pipeline:
 - `utils.py` - Shared utilities including logger setup
 - `templates/dashboard.html` - Web dashboard HTML template
 
+### Testing and Diagnostic Tools
+- `test_filter.py` - Automated filter testing against curated disaster articles
+- `review_articles.py` - Interactive tool for reviewing filter decisions on live articles
+- `analyze_feeds.py` - RSS feed content analysis and disaster keyword detection
+- `check_history.py` - Article history inspection and debugging tool
+- `data/test_articles.json` - Curated test dataset with known disaster/non-disaster articles
+
 ### Data Storage
 - `data/cache.json` - RSS feed HTTP caching (ETag, Last-Modified)
 - `data/article_history.json` - Tracks published articles to prevent duplicates
@@ -56,7 +76,11 @@ Environment variables are loaded from `.env` file:
 - `PROCESS_INTERVAL` - Scheduler interval in minutes (default: 60)
 - `HISTORY_RETENTION_DAYS` - Article history retention period (default: 30)
 - OpenAI model selection: `FILTER_MODEL`, `GROUP_MODEL`, `SUMMARIZE_MODEL`
-  - Default models: `gpt-5-mini` (supports GPT-5 series with enhanced reasoning)
+  - **Critical**: `FILTER_MODEL=gpt-4o-mini` (GPT-5-mini rejects obvious disaster articles)
+  - **Optimal**: `GROUP_MODEL=gpt-5-mini` (enhanced reasoning for categorization)
+  - **Summarization**: `SUMMARIZE_MODEL=gpt-4o-mini` (GPT-5-mini uses all tokens for reasoning, returns empty content)
+  - **Issue**: GPT-5-mini fails in filtering (too restrictive) and summarization (reasoning tokens consume completion limit)
+  - **Solution**: Use GPT-4o-mini for filtering and summarization, GPT-5-mini only for grouping
   - GPT-5 compatibility: Uses `max_completion_tokens` parameter, default temperature only
 - Slack: `SLACK_WEBHOOK_URL`
 - Email: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_RECIPIENTS`
@@ -74,9 +98,42 @@ The application runs as a single Docker container with different entry points:
 
 Use the Docker commands above with your built image name.
 
+## Testing and Debugging Workflow
+
+When experiencing issues with filter accuracy (e.g., 0 articles passing filter):
+
+**Common Issue**: If test shows 0% pass rate for disaster articles, GPT-5-mini is likely being used for filtering.  
+**Quick Fix**: Change `FILTER_MODEL=gpt-4o-mini` in .env file.
+
+1. **Test Filter Logic**: `python src/test_filter.py --verbose`
+   - Tests filter against 22+ curated disaster/non-disaster articles  
+   - Shows accuracy percentage and specific failures
+   - **Expected Results**: 80%+ accuracy with GPT-4o-mini, 0-40% with GPT-5-mini
+   - Identifies if filter prompt needs adjustment
+
+2. **Analyze Current Feeds**: `python src/analyze_feeds.py`
+   - Examines RSS feeds for disaster content patterns
+   - Identifies potential disaster articles by keywords
+   - Shows feed statistics and content analysis
+
+3. **Interactive Review**: `python src/review_articles.py --auto-fetch`
+   - Manually review what articles are being filtered out
+   - Search articles by keywords
+   - Export results for detailed analysis
+
+4. **Verbose Filtering**: `python src/main.py --verbose-filter --ignore-history`
+   - See GPT's reasoning for each filter decision
+   - Understand why articles are being rejected
+   - Debug prompt effectiveness in real-time
+
+5. **Test Summarization**: `python src/test_summarization.py`
+   - Check if summaries are narrative paragraphs vs. article lists
+   - Validate summarization model behavior
+   - Switch to `SUMMARIZE_MODEL=gpt-4o-mini` if getting list format
+
 ## Development Notes
 - Python 3.10+ required
-- No test suite currently exists
+- Comprehensive testing suite for filter validation
 - Docker containers run as non-root user for security
 - Persistent data stored in mounted volumes (`data/`, `logs/`)
 - Article history prevents duplicate processing across runs
