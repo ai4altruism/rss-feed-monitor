@@ -133,7 +133,7 @@ Articles:
             group_response = client.chat.completions.create(
                 model=group_model,
                 messages=[
-                    {"role": "system", "content": "You are a JSON formatting expert that groups news articles into topics. Return ONLY valid, well-formatted JSON with no explanations."},
+                    {"role": "system", "content": "You are a JSON formatting expert that groups news articles into topics. Return ONLY valid JSON. Use EXACT titles and links from the input - do not modify or paraphrase them."},
                     {"role": "user", "content": group_prompt}
                 ],
                 max_completion_tokens=2000,  # Increased token limit
@@ -206,11 +206,17 @@ Articles:
         ])
 
         summarize_prompt = f"""
-Write a single paragraph summary about {topic.get('topic')} based on these articles:
+Write a single paragraph summary about {topic.get('topic')} based ONLY on these articles:
 
 {combined_text}
 
-Write a flowing narrative paragraph that combines information from all articles. Include key details like locations, casualties, and current status. Do not use lists or bullet points - write in complete sentences that flow together.
+CRITICAL INSTRUCTIONS:
+- Use ONLY information explicitly stated in the articles above
+- Do NOT add any information not present in the source material
+- Do NOT invent specific numbers, dates, locations, or names
+- If details are missing, use general terms like "multiple", "several", "recently" 
+- Combine the facts into a flowing narrative paragraph (no lists or bullet points)
+- Focus on what IS stated rather than speculating about what might be
 
 Summary:"""
 
@@ -218,7 +224,7 @@ Summary:"""
             summarize_response = client.chat.completions.create(
                 model=summarize_model,
                 messages=[
-                    {"role": "system", "content": "You write concise narrative news summaries in paragraph format. Combine information from multiple sources into flowing prose, not lists."},
+                    {"role": "system", "content": "You are a fact-based news summarizer. You MUST use ONLY information explicitly provided in the source articles. Never add details, numbers, or facts not present in the sources. If information is missing, use general terms rather than inventing specifics."},
                     {"role": "user", "content": summarize_prompt}
                 ],
                 max_completion_tokens=400,
