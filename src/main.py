@@ -42,13 +42,13 @@ def parse_arguments():
         "--web-server", action="store_true", help="Run the web dashboard server"
     )
     parser.add_argument(
-        "--port", type=int, default=5001, help="Port for web dashboard (default: 5001)"
+        "--port", type=int, default=None, help="Port for web dashboard (default: WEB_DASHBOARD_PORT in .env, or 5001)"
     )
     parser.add_argument(
         "--history-retention",
         type=int,
-        default=30,
-        help="Number of days to retain article history (default: 30)",
+        default=None,
+        help="Number of days to retain article history (default: HISTORY_RETENTION_DAYS in .env, or 30)",
     )
     parser.add_argument(
         "--ignore-history",
@@ -128,12 +128,16 @@ def main():
     summarize_model = env_vars.get("SUMMARIZE_MODEL", "gpt-4-turbo")
 
     # Get history retention period from args or env
-    history_retention_days = args.history_retention or int(
-        env_vars.get("HISTORY_RETENTION_DAYS", 30)
+    history_retention_days = (
+        args.history_retention
+        if args.history_retention is not None
+        else int(env_vars.get("HISTORY_RETENTION_DAYS", 30))
     )
 
-    # Get web dashboard port from env if not specified in args
-    web_port = args.port if args.port != 5001 else int(env_vars.get("WEB_DASHBOARD_PORT", 5001))
+    # Get web dashboard port from args or env
+    web_port = (
+        args.port if args.port is not None else int(env_vars.get("WEB_DASHBOARD_PORT", 5001))
+    )
 
     if not openai_api_key:
         logger.error("OPENAI_API_KEY is not set in the .env file")
@@ -142,7 +146,7 @@ def main():
     # Check if we should run the web server only
     if args.web_server and run_dashboard:
         logger.info(f"Starting web dashboard server on port {web_port}...")
-        run_dashboard(port=web_port, debug=True)
+        run_dashboard(port=web_port, debug=False)
         return
 
     # Initialize article history
@@ -186,10 +190,31 @@ def main():
     if args.verbose_filter:
         logger.info("Verbose filtering enabled - detailed decisions will be logged")
     
-    filtered_articles = filter_stories(
-        unique_articles, filter_prompt, filter_model, openai_api_key, verbose=args.verbose_filter
+    filtered_articles, errored_articles = filter_stories(
+        unique_articles,
+        filter_prompt,
+        filter_model,
+        openai_api_key,
+        verbose=args.verbose_filter,
+        return_errors=True,
     )
-    logger.info(f"{len(filtered_articles)} articles remain after filtering.")
+    logger.info(
+        f"{len(filtered_articles)} articles remain after filtering "
+        f"({len(errored_articles)} errored and will be retried next run)."
+    )
+
+    # Record rejected articles so they are not re-filtered on every run.
+    # Errored articles are deliberately left unrecorded so they get retried.
+    if not args.ignore_history:
+        rejected_articles = [
+            a for a in unique_articles
+            if a not in filtered_articles and a not in errored_articles
+        ]
+        if rejected_articles:
+            article_history.mark_as_published(rejected_articles)
+            logger.info(
+                f"Recorded {len(rejected_articles)} rejected articles so they are not re-filtered."
+            )
 
     # If no articles remain after filtering, exit early without sending reports
     if not filtered_articles:
@@ -202,27 +227,22 @@ def main():
         filtered_articles, group_model, summarize_model, openai_api_key
     )
 
-    # Mark articles as published only if successfully processed and history tracking is enabled
-    if filtered_articles and not args.ignore_history:
-        article_history.mark_as_published(filtered_articles)
-        logger.info(f"Marked {len(filtered_articles)} articles as published.")
+    # Output handling based on selected method. Articles are marked as published
+    # only after the selected output succeeds, so a failed delivery is retried
+    # on the next run instead of being silently lost.
+    delivered = False
 
-    # Output handling based on selected method
     if args.output == "console" or args.output == "web":
         # Output the structured JSON summary to console
         output_json = json.dumps(summary, indent=4)
         logger.info("Summary generated:")
         print(output_json)
+        delivered = True
 
         # Save for web dashboard if requested
         if args.output == "web" and save_summary:
             save_summary(summary)
             logger.info("Summary saved for web dashboard.")
-
-            # Run web server if requested
-            if run_dashboard:
-                logger.info(f"Starting web dashboard server on port {web_port}...")
-                run_dashboard(port=web_port, debug=True, use_reloader=False)
 
     elif args.output == "slack":
         if publish_to_slack:
@@ -233,11 +253,11 @@ def main():
                 return
 
             logger.info("Publishing to Slack...")
-            success = publish_to_slack(summary, slack_webhook)
-            if success:
+            delivered = publish_to_slack(summary, slack_webhook)
+            if delivered:
                 logger.info("Successfully published to Slack.")
             else:
-                logger.error("Failed to publish to Slack.")
+                logger.error("Failed to publish to Slack. Articles will be retried next run.")
         else:
             logger.error(
                 "Slack publisher module not available. Install required dependencies."
@@ -254,7 +274,11 @@ def main():
                 "use_tls": env_vars.get("SMTP_USE_TLS", "True").lower() == "true",
             }
 
-            recipients = env_vars.get("EMAIL_RECIPIENTS", "").split(",")
+            recipients = [
+                r.strip()
+                for r in env_vars.get("EMAIL_RECIPIENTS", "").split(",")
+                if r.strip()
+            ]
 
             if not all(
                 [
@@ -271,15 +295,25 @@ def main():
                 return
 
             logger.info(f"Sending email to {len(recipients)} recipients...")
-            success = send_email(summary, smtp_config, recipients)
-            if success:
+            delivered = send_email(summary, smtp_config, recipients)
+            if delivered:
                 logger.info("Email sent successfully.")
             else:
-                logger.error("Failed to send email.")
+                logger.error("Failed to send email. Articles will be retried next run.")
         else:
             logger.error(
                 "Email reporter module not available. Install required dependencies."
             )
+
+    # Mark reported articles as published only after successful delivery
+    if delivered and not args.ignore_history:
+        article_history.mark_as_published(filtered_articles)
+        logger.info(f"Marked {len(filtered_articles)} articles as published.")
+
+    # Run web server if requested (after history bookkeeping — this call blocks)
+    if args.output == "web" and delivered and run_dashboard:
+        logger.info(f"Starting web dashboard server on port {web_port}...")
+        run_dashboard(port=web_port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":

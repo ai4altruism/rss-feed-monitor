@@ -56,8 +56,15 @@ def format_for_slack(summary_data):
         if articles:
             link_text = "*Articles:*\n"
             for idx, article in enumerate(articles, 1):
-                title = article.get("title", "Untitled")
-                link = article.get("link", "#")
+                # Escape Slack mrkdwn control characters so titles can't break
+                # out of the <url|text> link syntax.
+                title = (
+                    article.get("title", "Untitled")
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
+                link = article.get("link", "#").replace("|", "%7C").replace(">", "%3E")
                 link_text += f"{idx}. <{link}|{title}>\n"
             
             blocks.append({
