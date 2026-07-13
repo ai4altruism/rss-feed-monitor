@@ -5,6 +5,7 @@ import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
+from html import escape
 
 def generate_email_html(summary_data):
     """
@@ -43,10 +44,12 @@ def generate_email_html(summary_data):
     """
     
     for topic_group in summary_data.get("topics", []):
-        topic_name = topic_group.get("topic", "Uncategorized")
-        summary = topic_group.get("summary", "No summary available.")
+        # Feed-derived content is third-party input; escape it before
+        # interpolating into HTML.
+        topic_name = escape(topic_group.get("topic", "Uncategorized"))
+        summary = escape(topic_group.get("summary", "No summary available."))
         articles = topic_group.get("articles", [])
-        
+
         html += f"""
         <div class="topic">
             <h2 class="topic-title">{topic_name}</h2>
@@ -54,12 +57,12 @@ def generate_email_html(summary_data):
                 <p>{summary}</p>
             </div>
         """
-        
+
         if articles:
             html += '<ul class="articles">'
             for article in articles:
-                title = article.get("title", "Untitled")
-                link = article.get("link", "#")
+                title = escape(article.get("title", "Untitled"))
+                link = escape(article.get("link", "#"), quote=True)
                 html += f'<li class="article"><a href="{link}" target="_blank">{title}</a></li>'
             html += '</ul>'
         

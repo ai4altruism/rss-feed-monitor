@@ -14,9 +14,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `python src/scheduler.py --output slack --interval 30` - Run scheduler with 30-minute intervals
 
 ### Docker Commands
-- `docker run --rm --env-file /path/to/.env -v /path/to/.env:/app/.env IMAGE_NAME --output console` - Run once with console output
-- `docker run --rm --env-file /path/to/.env -v /path/to/.env:/app/.env IMAGE_NAME --output slack` - Run once with Slack output
-- `docker run -d --env-file /path/to/.env -v /path/to/.env:/app/.env --name news_scheduler2 --restart unless-stopped --entrypoint python IMAGE_NAME src/scheduler.py --output slack --interval 60` - Run scheduler daemon
+
+> [!important] Always mount a persistent volume at `/app/data`. Article history and the feed cache live there; without the mount, every container recreation (image rebuild, `--rm` one-shot) loses history and re-posts previously published articles.
+
+- `docker run --rm --env-file /path/to/.env -v /path/to/.env:/app/.env -v /path/to/data:/app/data IMAGE_NAME --output console` - Run once with console output
+- `docker run --rm --env-file /path/to/.env -v /path/to/.env:/app/.env -v /path/to/data:/app/data IMAGE_NAME --output slack` - Run once with Slack output
+- `docker run -d --env-file /path/to/.env -v /path/to/.env:/app/.env -v /path/to/data:/app/data --name news_scheduler2 --restart unless-stopped --entrypoint python IMAGE_NAME src/scheduler.py --output slack --interval 60` - Run scheduler daemon
 - `docker logs news_scheduler2 -f` - Follow logs in real-time
 - `docker stop news_scheduler2 && docker rm news_scheduler2` - Stop and remove container
 - `docker exec news_scheduler2 python src/check_history.py` - Check article history status
