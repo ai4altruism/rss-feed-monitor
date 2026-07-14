@@ -160,32 +160,63 @@ Articles:
             }
             all_topics.append(fallback_topic)
     
-    # Combine all topics into one structure
-    groups = {"topics": all_topics}
+    # Ground every LLM-emitted article back to a source article. The LLM can
+    # paraphrase titles or corrupt links when echoing them, so titles/links in
+    # its output are treated as lookup keys only — the published output always
+    # carries source data.
+    def _normalize_title(title):
+        return re.sub(r"\s+", " ", (title or "").strip().lower())
+
+    by_link = {a.get("link"): a for a in articles if a.get("link")}
+    by_title = {a.get("title"): a for a in articles if a.get("title")}
+    by_norm_title = {_normalize_title(a.get("title")): a for a in articles if a.get("title")}
+
+    grounded_topics = []
+    placed_ids = set()
+    for topic in all_topics:
+        grounded = []
+        for article in topic.get("articles", []):
+            src = (
+                by_link.get(article.get("link"))
+                or by_title.get(article.get("title"))
+                or by_norm_title.get(_normalize_title(article.get("title")))
+            )
+            if src is None:
+                logging.warning(
+                    f"Dropping ungroundable article from topic '{topic.get('topic')}': "
+                    f"{article.get('title')!r}"
+                )
+                continue
+            if id(src) in placed_ids:
+                continue  # already placed in an earlier topic
+            placed_ids.add(id(src))
+            grounded.append(src)
+        if grounded:
+            grounded_topics.append((topic, grounded))
+        else:
+            logging.warning(
+                f"Dropping topic with no groundable articles: '{topic.get('topic')}'"
+            )
+
+    # Articles the LLM omitted from its grouping response would otherwise be
+    # marked as published without ever appearing in a report — collect them
+    # into a catch-all topic instead of losing them.
+    leftovers = [a for a in articles if id(a) not in placed_ids]
+    if leftovers:
+        logging.warning(
+            f"{len(leftovers)} article(s) missing from LLM grouping; adding catch-all topic."
+        )
+        grounded_topics.append(({"topic": "Additional stories"}, leftovers))
+
+    groups = {"topics": []}
 
     # Process each topic and generate a summary
-    for topic in groups.get("topics", []):
-        articles_in_topic = topic.get("articles", [])
-        
-        # Match articles in the topic with full article data
-        relevant_articles = []
-        for article in articles_in_topic:
-            # Try to find the matching article with full data
-            matching_article = next((a for a in articles if a.get("title") == article.get("title")), None)
-            if matching_article:
-                relevant_articles.append(matching_article)
-            else:
-                # Use the limited data we have
-                relevant_articles.append({
-                    "title": article.get("title", ""),
-                    "link": article.get("link", ""),
-                    "summary": "No detailed summary available."
-                })
-        
-        # If no articles with full data were found, skip summarization
-        if not relevant_articles:
-            topic["summary"] = "No articles available for summarization."
-            continue
+    for topic, relevant_articles in grounded_topics:
+        # Output articles come straight from source data
+        topic["articles"] = [
+            {"title": a.get("title", "Untitled"), "link": a.get("link", "#")}
+            for a in relevant_articles
+        ]
 
         # Create a combined text for summarization
         combined_text = "\n\n".join([
@@ -219,25 +250,26 @@ Summary:"""
             )
 
             summary_text = summarize_response.choices[0].message.content.strip() if summarize_response.choices else ""
-            
+
             # Debug logging
             logging.info(f"Summarization response for '{topic.get('topic')}': {len(summary_text)} chars")
             if not summary_text:
                 logging.error(f"Summarization API returned an empty response for topic: {topic.get('topic')}")
                 logging.error(f"Response object: {summarize_response}")
-                summary_text = f"A collection of {len(articles_in_topic)} articles about {topic.get('topic')}."
+                summary_text = f"A collection of {len(relevant_articles)} articles about {topic.get('topic')}."
             else:
                 logging.info(f"Summary preview: {summary_text[:100]}...")
 
             # Clean up summary to remove any markdown formatting
             summary_text = re.sub(r'^[#*"\s]*(Summary:|Topic:|Articles:)\s*', '', summary_text)
             summary_text = re.sub(r'\n+', ' ', summary_text)
-            
+
             topic["summary"] = summary_text
-            topic["articles"] = [{"title": a.get("title", "Untitled"), "link": a.get("link", "#")} for a in articles_in_topic]
 
         except Exception as e:
             logging.error(f"LLM summarization error for topic '{topic.get('topic')}': {e}")
-            topic["summary"] = f"A collection of {len(articles_in_topic)} articles about {topic.get('topic')}."
+            topic["summary"] = f"A collection of {len(relevant_articles)} articles about {topic.get('topic')}."
+
+        groups["topics"].append(topic)
 
     return groups
