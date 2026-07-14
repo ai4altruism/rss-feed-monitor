@@ -7,36 +7,24 @@ import re
 
 def sanitize_json_string(json_string):
     """
-    Sanitize a JSON string to fix common issues that cause parsing failures.
-    
+    Strip markdown code fences (```json ... ```) that LLMs sometimes wrap
+    around JSON output.
+
+    Deliberately does nothing else: the grouping call already enforces
+    response_format json_object, and the caller falls back to listing the
+    raw articles when parsing fails. Heavier regex "repairs" (re-escaping
+    quotes, appending quotes to odd-quote lines) risk corrupting valid
+    output that legitimately contains quotes.
+
     Parameters:
-        json_string (str): Potentially malformed JSON string
-        
+        json_string (str): Potentially fence-wrapped JSON string
+
     Returns:
-        str: Sanitized JSON string
+        str: JSON string without markdown fences
     """
-    # Remove any markdown artifacts
-    json_string = re.sub(r'^```json\s*', '', json_string)
+    json_string = json_string.strip()
+    json_string = re.sub(r'^```(?:json)?\s*', '', json_string)
     json_string = re.sub(r'\s*```$', '', json_string)
-    
-    # Fix common LLM JSON formatting issues
-    # Handle improperly escaped quotes within JSON strings
-    json_string = re.sub(r'(?<!\\)"(?=(.*?".*?":))', r'\"', json_string)
-    
-    # Fix missing quotes around keys (not standard JSON but LLMs sometimes do this)
-    json_string = re.sub(r'([{,]\s*)([a-zA-Z0-9_]+)(\s*:)', r'\1"\2"\3', json_string)
-    
-    # Fix unterminated strings by adding a closing quote if there's an opening one
-    lines = json_string.split('\n')
-    for i, line in enumerate(lines):
-        # Count quotes in this line
-        quotes = line.count('"')
-        # If odd number of quotes, add one at the end
-        if quotes % 2 == 1 and not line.strip().endswith(','):
-            lines[i] = line + '"'
-    
-    json_string = '\n'.join(lines)
-    
     return json_string
 
 def validate_json(json_string):
