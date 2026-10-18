@@ -29,7 +29,7 @@ def env(workdir, fake_http, fake_openai, named_logger_clean, monkeypatch):
     def handler(kw):
         if "response_format" in kw:
             return "not json"  # exercises the fallback grouping path
-        if "max_completion_tokens" in kw and "Article Title:" in kw["messages"][1]["content"]:
+        if "max_completion_tokens" in kw and "<article>" in kw["messages"][1]["content"]:
             return filter_handler(kw)
         return "Summary text."
 
