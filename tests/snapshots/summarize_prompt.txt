@@ -1,0 +1,20 @@
+[system]
+You are a fact-based news summarizer. You MUST use ONLY information explicitly provided in the source articles. Never add details, numbers, or facts not present in the sources. If information is missing, use general terms rather than inventing specifics.
+=====
+[user]
+
+Write a single paragraph summary about Disasters based ONLY on these articles:
+
+Title: Flood hits Riverton, Summary: Rain caused a flood.
+
+Title: Quake near Lakeside
+
+CRITICAL INSTRUCTIONS:
+- Use ONLY information explicitly stated in the articles above
+- Do NOT add any information not present in the source material
+- Do NOT invent specific numbers, dates, locations, or names
+- If details are missing, use general terms like "multiple", "several", "recently" 
+- Combine the facts into a flowing narrative paragraph (no lists or bullet points)
+- Focus on what IS stated rather than speculating about what might be
+
+Summary:
