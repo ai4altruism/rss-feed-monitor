@@ -79,12 +79,10 @@ Environment variables are loaded from `.env` file:
 - `PROCESS_INTERVAL` - Scheduler interval in minutes (default: 60)
 - `HISTORY_RETENTION_DAYS` - Article history retention period (default: 30)
 - OpenAI model selection: `FILTER_MODEL`, `GROUP_MODEL`, `SUMMARIZE_MODEL`
-  - **Critical**: `FILTER_MODEL=gpt-4o-mini` (GPT-5-mini rejects obvious disaster articles)
-  - **Optimal**: `GROUP_MODEL=gpt-5-mini` (enhanced reasoning for categorization)
-  - **Summarization**: `SUMMARIZE_MODEL=gpt-4o-mini` (GPT-5-mini uses all tokens for reasoning, returns empty content)
-  - **Issue**: GPT-5-mini fails in filtering (too restrictive) and summarization (reasoning tokens consume completion limit)
-  - **Solution**: Use GPT-4o-mini for filtering and summarization, GPT-5-mini only for grouping
-  - GPT-5 compatibility: Uses `max_completion_tokens` parameter, default temperature only
+  - **Current**: `FILTER_MODEL=gpt-6-luna`, `GROUP_MODEL=gpt-5-mini`, `SUMMARIZE_MODEL=gpt-6-luna` (October 2026; GPT-4o mini retires 2027-01-14)
+  - **Reasoning models**: everything outside the `gpt-4` and `gpt-3.5` families spends hidden reasoning tokens against `max_completion_tokens`. `utils.is_reasoning_model` decides which caps get headroom; a model it misclassifies returns empty content on every call
+  - The old "GPT-5-mini is too restrictive" result was a 5-token cap returning empty answers, not the model's judgment
+  - Compatibility: uses `max_completion_tokens`, default temperature only
 - Slack: `SLACK_WEBHOOK_URL`
 - Email: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_RECIPIENTS`
 
@@ -105,13 +103,12 @@ Use the Docker commands above with your built image name.
 
 When experiencing issues with filter accuracy (e.g., 0 articles passing filter):
 
-**Common Issue**: If test shows 0% pass rate for disaster articles, GPT-5-mini is likely being used for filtering.  
-**Quick Fix**: Change `FILTER_MODEL=gpt-4o-mini` in .env file.
+**Common Issue**: If every article errors or none pass, check that `utils.is_reasoning_model` recognizes `FILTER_MODEL`; a reasoning model under a 5-token cap returns empty answers.
 
 1. **Test Filter Logic**: `python src/test_filter.py --verbose`
    - Tests filter against 22+ curated disaster/non-disaster articles  
    - Shows accuracy percentage and specific failures
-   - **Expected Results**: 80%+ accuracy with GPT-4o-mini, 0-40% with GPT-5-mini
+   - **Expected Results**: 80%+ accuracy
    - Identifies if filter prompt needs adjustment
 
 2. **Analyze Current Feeds**: `python src/analyze_feeds.py`
@@ -132,7 +129,7 @@ When experiencing issues with filter accuracy (e.g., 0 articles passing filter):
 5. **Test Summarization**: `python src/test_summarization.py`
    - Check if summaries are narrative paragraphs vs. article lists
    - Validate summarization model behavior
-   - Switch to `SUMMARIZE_MODEL=gpt-4o-mini` if getting list format
+   - If summaries come back empty or generic ("A collection of N articles"), check the summary cap for reasoning models
 
 ## Development Notes
 - Python 3.10+ required

@@ -4,6 +4,8 @@ from openai import OpenAI
 import logging
 import time
 
+from utils import is_reasoning_model
+
 
 def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbose=False, return_errors=False):
     """
@@ -26,10 +28,10 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbos
     filtered_articles = []
     errored_articles = []
 
-    # Reasoning models (gpt-5*, o*) consume completion tokens on hidden reasoning
-    # before any visible output; a tiny cap yields an empty answer and every
-    # article would be silently excluded. Give them headroom.
-    reasoning_model = filter_model.startswith(("gpt-5", "o1", "o3", "o4"))
+    # Reasoning models consume completion tokens on hidden reasoning before
+    # any visible output; a tiny cap yields an empty answer and every article
+    # would error. Give them headroom.
+    reasoning_model = is_reasoning_model(filter_model)
     
     if verbose:
         logging.info(f"Starting filter with model: {filter_model}")
@@ -52,7 +54,7 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbos
             First, briefly explain your reasoning (1-2 sentences).
             Then, answer with "DECISION: Yes" or "DECISION: No".
             """
-            max_tokens = 2000 if reasoning_model else 100
+            max_tokens = 4000 if reasoning_model else 100
         else:
             prompt = f"""
             Determine if the following article is relevant based on this criteria:
@@ -63,7 +65,7 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbos
 
             Answer with a single word: "Yes" or "No".
             """
-            max_tokens = 2000 if reasoning_model else 5
+            max_tokens = 4000 if reasoning_model else 5
 
         try:
             start_time = time.time()

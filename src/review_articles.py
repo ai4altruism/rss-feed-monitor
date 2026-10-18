@@ -18,7 +18,7 @@ class ArticleReviewer:
         self.env_vars = dotenv_values(".env")
         self.openai_api_key = self.env_vars.get("OPENAI_API_KEY")
         self.filter_prompt = self.env_vars.get("FILTER_PROMPT", "")
-        self.filter_model = self.env_vars.get("FILTER_MODEL", "gpt-4-turbo")
+        self.filter_model = self.env_vars.get("FILTER_MODEL", "gpt-6-luna")
         
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set in the .env file")

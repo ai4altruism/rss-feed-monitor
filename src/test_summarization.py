@@ -13,8 +13,8 @@ def test_summarization():
     # Load environment variables
     env_vars = dotenv_values(".env")
     openai_api_key = env_vars.get("OPENAI_API_KEY")
-    group_model = env_vars.get("GROUP_MODEL", "gpt-4-turbo")
-    summarize_model = env_vars.get("SUMMARIZE_MODEL", "gpt-4-turbo")
+    group_model = env_vars.get("GROUP_MODEL", "gpt-5-mini")
+    summarize_model = env_vars.get("SUMMARIZE_MODEL", "gpt-6-luna")
     
     # Sample test articles (similar to your wildfire example)
     test_articles = [
@@ -99,7 +99,7 @@ def test_summarization():
         else:
             print("❌ ISSUE: Still producing list-format summaries")
             print("\nRECOMMENDATIONS:")
-            print("1. Try using GPT-4o-mini for SUMMARIZE_MODEL")
+            print("1. Try a different SUMMARIZE_MODEL")
             print("2. Further refine the summarization prompt")
             print("3. Consider post-processing to clean up formatting")
 

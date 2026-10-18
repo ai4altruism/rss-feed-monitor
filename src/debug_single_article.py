@@ -14,7 +14,7 @@ def debug_single_article():
     env_vars = dotenv_values(".env")
     openai_api_key = env_vars.get("OPENAI_API_KEY")
     filter_prompt = env_vars.get("FILTER_PROMPT", "")
-    filter_model = env_vars.get("FILTER_MODEL", "gpt-4-turbo")
+    filter_model = env_vars.get("FILTER_MODEL", "gpt-6-luna")
     
     # Use a clear disaster example
     test_article = {
@@ -43,8 +43,8 @@ def debug_single_article():
     if len(filtered) == 0:
         print("\n💡 TROUBLESHOOTING SUGGESTIONS:")
         print("1. The filter prompt might be too restrictive")
-        print("2. GPT-5-mini might be interpreting the criteria too strictly")
-        print("3. Try simplifying the prompt or using gpt-4 instead")
+        print("2. If every answer is empty, check utils.is_reasoning_model for FILTER_MODEL")
+        print("3. Try simplifying the prompt or a different FILTER_MODEL")
         print("4. Check if the location requirement is causing issues")
 
 if __name__ == "__main__":

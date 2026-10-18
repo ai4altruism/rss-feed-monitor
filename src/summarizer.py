@@ -5,6 +5,8 @@ import logging
 import json
 import re
 
+from utils import is_reasoning_model
+
 def sanitize_json_string(json_string):
     """
     Strip markdown code fences (```json ... ```) that LLMs sometimes wrap
@@ -124,7 +126,9 @@ Articles:
                     {"role": "system", "content": "You are a JSON formatting expert that groups news articles into topics. Return ONLY valid JSON. Use EXACT titles and links from the input - do not modify or paraphrase them."},
                     {"role": "user", "content": group_prompt}
                 ],
-                max_completion_tokens=2000,  # Increased token limit
+                # Reasoning models spend part of the cap before writing; 2000
+                # left later 10-article chunks empty on gpt-5-mini.
+                max_completion_tokens=16000 if is_reasoning_model(group_model) else 2000,
                 response_format={"type": "json_object"}  # Enforce JSON response format if available
             )
 
@@ -246,7 +250,8 @@ Summary:"""
                     {"role": "system", "content": "You are a fact-based news summarizer. You MUST use ONLY information explicitly provided in the source articles. Never add details, numbers, or facts not present in the sources. If information is missing, use general terms rather than inventing specifics."},
                     {"role": "user", "content": summarize_prompt}
                 ],
-                max_completion_tokens=400,
+                # Reasoning models spend part of the cap before writing.
+                max_completion_tokens=4000 if is_reasoning_model(summarize_model) else 400,
             )
 
             summary_text = summarize_response.choices[0].message.content.strip() if summarize_response.choices else ""
