@@ -43,7 +43,7 @@ def debug_single_article():
     if len(filtered) == 0:
         print("\n💡 TROUBLESHOOTING SUGGESTIONS:")
         print("1. The filter prompt might be too restrictive")
-        print("2. GPT-5-mini might be interpreting the criteria too strictly")
+        print("2. If every answer is empty, check utils.is_reasoning_model for FILTER_MODEL")
         print("3. Try simplifying the prompt or a different FILTER_MODEL")
         print("4. Check if the location requirement is causing issues")
 

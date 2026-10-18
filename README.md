@@ -437,20 +437,14 @@ docker-compose up -d
 
 ## 🛠 Troubleshooting
 
-### GPT-5 Model Compatibility
+### Reasoning Model Compatibility
 
-This application supports OpenAI's GPT-5 series models (gpt-5-mini, gpt-5, gpt-5-nano). Key compatibility notes:
+Every OpenAI family after `gpt-4` (gpt-5, gpt-6, the o-series) is a reasoning model:
 
-- **Parameter Changes**: GPT-5 models use `max_completion_tokens` instead of `max_tokens`
-- **Temperature Restrictions**: GPT-5 models only support default temperature (no custom temperature values)
-- **Enhanced Reasoning**: GPT-5 models include internal reasoning tokens for improved accuracy
-- **Token Limits**: Input: 272,000 tokens, Output: 128,000 completion tokens, Total context: 400,000 tokens
+- **Parameters**: requests use `max_completion_tokens` and the default temperature
+- **Hidden reasoning tokens** count against `max_completion_tokens` before any visible output. `utils.is_reasoning_model` gives these models generous caps; a model it misclassifies returns empty content on every call.
 
-**⚠️ Important Filtering Behavior**: GPT-5-mini is overly restrictive for binary filtering tasks and will reject obvious disaster articles that should pass. For optimal results:
-- Use **GPT-4o-mini** for `FILTER_MODEL` 
-- Use **GPT-5-mini** for `GROUP_MODEL` and `SUMMARIZE_MODEL` to leverage enhanced reasoning
-
-If you encounter filtering issues where obvious disaster articles are rejected, switch the filter model to GPT-4o-mini.
+**Filtering returns nothing?** Check that `utils.is_reasoning_model` is True for your `FILTER_MODEL`. The old advice that GPT-5-mini is "overly restrictive" came from a 5-token cap that left reasoning models no room to answer.
 
 ### Common Issues
 

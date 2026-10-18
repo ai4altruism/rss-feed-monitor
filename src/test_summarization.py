@@ -99,7 +99,7 @@ def test_summarization():
         else:
             print("❌ ISSUE: Still producing list-format summaries")
             print("\nRECOMMENDATIONS:")
-            print("1. Try using GPT-4o-mini for SUMMARIZE_MODEL")
+            print("1. Try a different SUMMARIZE_MODEL")
             print("2. Further refine the summarization prompt")
             print("3. Consider post-processing to clean up formatting")
 
