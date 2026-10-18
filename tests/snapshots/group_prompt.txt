@@ -1,0 +1,29 @@
+[system]
+You are a JSON formatting expert that groups news articles into topics. Return ONLY valid JSON. Use EXACT titles and links from the input - do not modify or paraphrase them.
+=====
+[user]
+
+Group these articles into topics. Return ONLY valid JSON in this exact format:
+{
+    "topics": [
+        {
+            "topic": "Topic Name",
+            "articles": [
+                {"title": "Article Title", "link": "Article Link"}
+            ]
+        }
+    ]
+}
+
+IMPORTANT:
+- Return ONLY valid, parseable JSON
+- Double quotes for ALL keys and values
+- Properly escape quotes in strings with backslash
+- No single quotes, no trailing commas
+- No comments, no explanations
+- No code blocks or markup
+
+Articles:
+Title: "Flood hits Riverton", Link: "http://x.test/1"
+
+Title: "Quake near Lakeside", Link: "http://x.test/2"

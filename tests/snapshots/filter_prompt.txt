@@ -1,0 +1,13 @@
+[system]
+Evaluate whether this article is relevant to the given criteria.
+=====
+[user]
+
+            Determine if the following article is relevant based on this criteria:
+            "Natural disasters and humanitarian crises"
+
+            Article Title: Flood hits Riverton
+            Article Summary: Rain caused a flood.
+
+            Answer with a single word: "Yes" or "No".
+            
