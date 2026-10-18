@@ -28,7 +28,7 @@ def run_filter_test(verbose=False):
     env_vars = dotenv_values(".env")
     openai_api_key = env_vars.get("OPENAI_API_KEY")
     filter_prompt = env_vars.get("FILTER_PROMPT", "")
-    filter_model = env_vars.get("FILTER_MODEL", "gpt-4-turbo")
+    filter_model = env_vars.get("FILTER_MODEL", "gpt-6-luna")
     
     if not openai_api_key:
         logger.error("OPENAI_API_KEY is not set in the .env file")
@@ -138,7 +138,7 @@ def run_filter_test(verbose=False):
         print("\n⚠️  LOW ACCURACY WARNING:")
         print("Your filter accuracy is below 80%. Consider:")
         print("1. Adjusting the FILTER_PROMPT in your .env file")
-        print("2. Using gpt-4o-mini for FILTER_MODEL (gpt-5-mini is too restrictive for filtering)")
+        print("2. Checking FILTER_MODEL; reasoning models need the completion headroom llm_filter gives them")
         print("3. Making the criteria more specific or inclusive")
     
     return accuracy >= 80

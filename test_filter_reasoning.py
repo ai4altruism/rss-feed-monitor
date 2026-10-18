@@ -20,7 +20,7 @@ def test_with_reasoning():
     env_vars = dotenv_values(".env")
     openai_api_key = env_vars.get("OPENAI_API_KEY")
     filter_prompt = env_vars.get("FILTER_PROMPT", "")
-    filter_model = env_vars.get("FILTER_MODEL", "gpt-4-turbo")
+    filter_model = env_vars.get("FILTER_MODEL", "gpt-6-luna")
     
     # Clear disaster example
     test_article = {
@@ -49,7 +49,7 @@ def test_with_reasoning():
         print("\n💡 RECOMMENDED FIXES:")
         print("1. Simplify the filter prompt - remove subjective words like 'SIGNIFICANT'")
         print("2. Try: 'Include major natural disasters: earthquakes 6.0+, hurricanes, floods, wildfires, volcanic eruptions.'")
-        print("3. Consider switching to gpt-4 model instead of gpt-5-mini")
+        print("3. Consider a different FILTER_MODEL")
         print("4. Remove the strict location requirement")
 
 if __name__ == "__main__":

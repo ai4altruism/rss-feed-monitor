@@ -13,8 +13,8 @@ def test_summarization():
     # Load environment variables
     env_vars = dotenv_values(".env")
     openai_api_key = env_vars.get("OPENAI_API_KEY")
-    group_model = env_vars.get("GROUP_MODEL", "gpt-4-turbo")
-    summarize_model = env_vars.get("SUMMARIZE_MODEL", "gpt-4-turbo")
+    group_model = env_vars.get("GROUP_MODEL", "gpt-5-mini")
+    summarize_model = env_vars.get("SUMMARIZE_MODEL", "gpt-6-luna")
     
     # Sample test articles (similar to your wildfire example)
     test_articles = [

@@ -35,3 +35,16 @@ def setup_logger():
     logger.addHandler(console_handler)
     
     return logger
+
+
+# Model families that answer without hidden reasoning tokens. Every newer
+# OpenAI family (gpt-5*, gpt-6*, o-series) reasons first, and that reasoning
+# counts against max_completion_tokens: a cap sized for a direct answer
+# comes back empty. Listing the old families, rather than the new ones,
+# keeps the next family from silently hitting that trap.
+NON_REASONING_PREFIXES = ("gpt-4", "gpt-3.5")
+
+
+def is_reasoning_model(model):
+    """Return True unless the model belongs to a known non-reasoning family."""
+    return not model.startswith(NON_REASONING_PREFIXES)
