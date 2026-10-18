@@ -25,10 +25,6 @@ def test_setup_logger_writes_named_logger_lines_to_file(workdir, named_logger_cl
     assert "named-logger-line" in (workdir / "logs" / "app.log").read_text()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: only the named logger is configured, so root-level logging.info lines (all modules) are dropped",
-)
 def test_setup_logger_root_logging_info_reaches_log_file(workdir, named_logger_clean):
     logger = setup_logger()
 

@@ -2,9 +2,20 @@
 
 from openai import OpenAI
 import logging
+import re
 import time
 
 from utils import is_reasoning_model
+
+
+_DECISION = re.compile(r"\W*(yes|no)\b", re.IGNORECASE)
+
+
+def _parse_decision(answer):
+    """'yes' or 'no' from the answer's first word (any case, punctuation
+    allowed, explanation after it ignored), else None."""
+    m = _DECISION.match(answer or "")
+    return m.group(1).lower() if m else None
 
 
 def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbose=False, return_errors=False):
@@ -105,8 +116,7 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbos
                 elif "decision: no" in decision_lower:
                     decision = "no"
                 else:
-                    # Fallback to looking for yes/no anywhere
-                    decision = "yes" if "yes" in decision_lower else "no"
+                    decision = _parse_decision(answer)
                 
                 # Log detailed information
                 reasoning = answer.split("DECISION:")[0].strip() if "DECISION:" in answer else answer
@@ -115,9 +125,20 @@ def filter_stories(articles, filter_prompt, filter_model, openai_api_key, verbos
                 logging.info(f"  → Response time: {response_time:.2f}s")
                 logging.info(f"  → Tokens used: ~{len(answer.split())}")
             else:
-                decision = answer.lower()
-            
-            if "yes" in decision:
+                decision = _parse_decision(answer)
+
+            if decision is None:
+                # Neither a plain yes nor a plain no ("No, yesterday's storm"
+                # used to pass on the substring "yes"). Retry next run rather
+                # than guess or record a rejection.
+                logging.error(
+                    f"Unparseable filter answer for article '{article.get('title')}' "
+                    f"(model {filter_model}): {answer[:80]!r}. Article will be retried next run."
+                )
+                errored_articles.append(article)
+                continue
+
+            if decision == "yes":
                 filtered_articles.append(article)
                 if verbose:
                     logging.info(f"  ✅ INCLUDED")

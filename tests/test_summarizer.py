@@ -150,14 +150,12 @@ def test_group_and_summarize_summary_cleanup_strips_label_and_newlines(fake_open
     assert out["topics"][0]["summary"] == "Line one. Line two."
 
 
-@pytest.mark.xfail(strict=True, reason='BUG: empty-summary check runs before the cleanup regex, so a reply of "Summary:" ends as ""')
 def test_group_and_summarize_label_only_summary_is_never_empty(fake_openai):
     a = arts(1)
     out = run(a, fake_openai, script(grouping(("F", a)), summary="Summary:"))
     assert out["topics"][0]["summary"].strip() != ""
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: wrong-shaped grouping JSON raises AttributeError outside any try")
 @pytest.mark.parametrize("content", [
     json.dumps({"topics": ["x"]}),
     json.dumps({"topics": [{"topic": "T", "articles": ["t"]}]}),
@@ -168,7 +166,6 @@ def test_group_and_summarize_wrong_shape_grouping_does_not_raise(fake_openai, co
     assert sorted(flat_links(out)) == sorted(x["link"] for x in a)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: two input articles sharing a link both appear in output (one grounded, one as leftover)")
 def test_group_and_summarize_duplicate_link_appears_once(fake_openai):
     a = [{"title": "First", "link": "http://x.test/dup", "summary": "s"},
          {"title": "Second", "link": "http://x.test/dup", "summary": "s"}]
