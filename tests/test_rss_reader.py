@@ -63,7 +63,6 @@ def test_fetch_feeds_missing_fields_default_to_empty_strings(fake_http, workdir)
 import pytest
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: any feedparser bozo flag skips the whole feed even when entries parsed")
 def test_fetch_feeds_recoverable_bozo_keeps_parsed_entries(fake_http, workdir):
     truncated = rss_xml([("T1", "http://x.test/1", "S1")]).replace("</channel></rss>", "")
     fake_http.add(A, FakeResponse(200, truncated))

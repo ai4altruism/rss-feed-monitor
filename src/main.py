@@ -185,6 +185,18 @@ def main():
         logger.info("Article history check skipped (--ignore-history flag used).")
         unique_articles = articles
 
+    # The same link can arrive from two feeds; filtering both copies would
+    # let one copy's rejection mark the link that the other copy passed.
+    seen_links, deduped = set(), []
+    for a in unique_articles:
+        key = a.get("link") or "title:" + (a.get("title") or "")
+        if key not in seen_links:
+            seen_links.add(key)
+            deduped.append(a)
+    if len(deduped) < len(unique_articles):
+        logger.info(f"Dropped {len(unique_articles) - len(deduped)} duplicate article(s) within this run.")
+    unique_articles = deduped
+
     # Filter articles using LLM
     logger.info("Filtering articles using LLM...")
     if args.verbose_filter:
@@ -211,7 +223,7 @@ def main():
             if a not in filtered_articles and a not in errored_articles
         ]
         if rejected_articles:
-            article_history.mark_as_published(rejected_articles)
+            article_history.mark_as_published(rejected_articles, status="rejected")
             logger.info(
                 f"Recorded {len(rejected_articles)} rejected articles so they are not re-filtered."
             )
@@ -253,11 +265,20 @@ def main():
                 return
 
             logger.info("Publishing to Slack...")
-            delivered = publish_to_slack(summary, slack_webhook)
+            delivered_links = set()
+            delivered = publish_to_slack(summary, slack_webhook, delivered_links=delivered_links)
             if delivered:
                 logger.info("Successfully published to Slack.")
             else:
-                logger.error("Failed to publish to Slack. Articles will be retried next run.")
+                # A summary sent as several messages can fail part-way: mark
+                # what Slack accepted so it is not posted twice, retry the rest.
+                partial = [a for a in filtered_articles if a.get("link") in delivered_links]
+                if partial and not args.ignore_history:
+                    article_history.mark_as_published(partial)
+                logger.error(
+                    f"Failed to publish to Slack; {len(partial)} delivered article(s) marked, "
+                    f"{len(filtered_articles) - len(partial)} will be retried next run."
+                )
         else:
             logger.error(
                 "Slack publisher module not available. Install required dependencies."

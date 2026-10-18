@@ -115,7 +115,6 @@ def test_main_missing_api_key_returns_without_any_calls(env, workdir, fake_http,
     assert fake_http.calls == [] and fake_openai.calls == []
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a rejected duplicate link marks the link, so after delivery failure the passed copy is lost")
 def test_main_duplicate_link_one_yes_one_no_then_failed_delivery_is_retried(env, workdir, fake_http):
     env([("KEEP passed copy", u(1), "s"), ("drop rejected copy", u(1), "s")])
     fake_http.add(HOOK, FakeResponse(500, "err"))
@@ -126,10 +125,22 @@ def test_main_duplicate_link_one_yes_one_no_then_failed_delivery_is_retried(env,
     assert len(ok_posts) == 2  # failed attempt plus the successful retry
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: rejection keyed only on link, so a changed title/summary is never re-filtered")
 def test_main_rejected_link_is_refiltered_when_content_changes(env, workdir, fake_http):
     env([("drop old headline", u(1), "s")])
     run_main()
     env([("KEEP updated headline", u(1), "s")])
     run_main()
     assert len(slack_posts(fake_http)) == 1
+
+
+def test_main_partial_slack_delivery_marks_only_delivered(env, workdir, fake_http, monkeypatch):
+    env([("KEEP one", u(1), "s"), ("KEEP two", u(2), "s")])
+    import main as main_mod
+
+    def partial(summary, hook, delivered_links=None):
+        delivered_links.add(u(1))
+        return False
+
+    monkeypatch.setattr(main_mod, "publish_to_slack", partial)
+    main_mod.main()
+    assert history_links(workdir) == {u(1)}

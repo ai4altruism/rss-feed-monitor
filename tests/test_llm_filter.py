@@ -25,7 +25,6 @@ def test_filter_stories_no_answer_rejects_without_error(fake_openai, answer):
     assert run([art("a")]) == ([], [])
 
 
-@pytest.mark.xfail(strict=True, reason='BUG: decision uses substring `"yes" in answer`, so "No, yesterday\'s storm" passes')
 def test_filter_stories_no_answer_mentioning_yesterday_is_rejected(fake_openai):
     fake_openai.queue = ["No, yesterday's storm"]
     passed, errored = run([art("a")])
@@ -101,3 +100,15 @@ def test_filter_prompt_snapshot(fake_openai):
 @pytest.mark.snapshot
 def test_filter_prompt_verbose_snapshot(fake_openai):
     check_snapshot("filter_prompt_verbose", _prompt_snapshot(fake_openai, True))
+
+
+@pytest.mark.parametrize("answer, outcome", [
+    ("Yes, a major earthquake", "pass"),
+    ("YES.", "pass"),
+    ("Eyes on the storm: no", "error"),
+    ("Maybe", "error"),
+])
+def test_filter_stories_reads_the_first_word(fake_openai, answer, outcome):
+    fake_openai.queue = [answer]
+    passed, errored = run([art("a")])
+    assert (passed, errored) == {"pass": ([art("a")], []), "error": ([], [art("a")])}[outcome]

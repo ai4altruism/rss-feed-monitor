@@ -76,7 +76,6 @@ def test_retention_prune_runs_at_most_once_per_day(history_file, frozen_now):
     assert "old" in h.history["articles"]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: a corrupt or truncated history file loads as empty history silently (no raise, no backup)")
 def test_corrupt_history_file_raises_or_is_backed_up(history_file, workdir):
     with open(history_file, "w") as f:
         f.write('{"last_cleaned": "2026-01-01T00:00:00", "articles": {"http://x')
@@ -88,7 +87,6 @@ def test_corrupt_history_file_raises_or_is_backed_up(history_file, workdir):
     assert siblings, "corrupt file was silently replaced by an empty history"
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: _save_history writes in place, so a failed write truncates the existing history")
 def test_failed_save_leaves_previous_history_intact(history_file, monkeypatch):
     h = ArticleHistory(history_file)
     h.mark_as_published([art("http://x.test/1")])
@@ -104,9 +102,25 @@ def test_failed_save_leaves_previous_history_intact(history_file, monkeypatch):
     assert open(history_file).read() == before
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: an empty link is never marked published, so a linkless article repeats every run")
 def test_linkless_article_is_not_republished_after_marking(history_file):
     h = ArticleHistory(history_file)
     linkless = {"link": "", "title": "No link"}
     h.mark_as_published([linkless])
     assert h.filter_published([linkless]) == []
+
+
+def test_corrupt_history_falls_back_to_previous_save(history_file):
+    h = ArticleHistory(history_file)
+    h.mark_as_published([art("http://x.test/1")])
+    h.mark_as_published([art("http://x.test/2")])  # first save is now the .bak
+    with open(history_file, "w") as f:
+        f.write('{"articles": {"http://x')
+    restored = ArticleHistory(history_file)
+    assert "http://x.test/1" in restored.history["articles"]
+
+
+def test_rejected_article_with_same_title_is_still_skipped(history_file):
+    h = ArticleHistory(history_file)
+    a = {"link": "http://x.test/r", "title": "Same"}
+    h.mark_as_published([a], status="rejected")
+    assert h.filter_published([dict(a)]) == []

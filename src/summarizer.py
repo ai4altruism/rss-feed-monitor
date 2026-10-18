@@ -56,6 +56,14 @@ def validate_json(json_string):
             logging.error(f"JSON parsing still failed after sanitization: {e}")
             return False, str(e)
 
+def _topics_from(result):
+    """The topic dicts in a grouping response, whatever its shape."""
+    topics = result.get("topics") if isinstance(result, dict) else result
+    if not isinstance(topics, list):
+        return []
+    return [t for t in topics if isinstance(t, dict)]
+
+
 def group_and_summarize(articles, group_model, summarize_model, openai_api_key):
     """
     Groups articles by topic and generates summaries using OpenAI's Chat API, preserving hyperlinks.
@@ -74,6 +82,16 @@ def group_and_summarize(articles, group_model, summarize_model, openai_api_key):
     if not articles:
         return {"topics": []}
         
+    # One entry per link: two feeds carrying the same story would otherwise
+    # put it in a topic and again in "Additional stories".
+    seen, unique = set(), []
+    for a in articles:
+        key = a.get("link") or id(a)
+        if key not in seen:
+            seen.add(key)
+            unique.append(a)
+    articles = unique
+
     # Instead of sending all articles at once, let's chunk them to avoid token limits
     def chunk_articles(articles_list, chunk_size=10):
         """Split articles into smaller chunks to avoid token limits."""
@@ -139,13 +157,13 @@ Articles:
             try:
                 chunk_result = json.loads(group_raw_output)
                 # If successful, add topics to our collection
-                all_topics.extend(chunk_result.get("topics", []))
+                all_topics.extend(_topics_from(chunk_result))
             except json.JSONDecodeError as e:
                 logging.error(f"JSON parsing failed for chunk {chunk_index+1}: {e}")
                 # Try our repair function
                 is_valid, result = validate_json(group_raw_output)
                 if is_valid:
-                    all_topics.extend(result.get("topics", []))
+                    all_topics.extend(_topics_from(result))
                 else:
                     logging.error(f"JSON validation also failed: {result}")
                     # Create a fallback topic with the raw articles
@@ -179,7 +197,13 @@ Articles:
     placed_ids = set()
     for topic in all_topics:
         grounded = []
-        for article in topic.get("articles", []):
+        for article in topic.get("articles") or []:
+            # json_object mode enforces JSON, not this schema: a bare title
+            # string is looked up as a title, anything else is skipped.
+            if isinstance(article, str):
+                article = {"title": article}
+            elif not isinstance(article, dict):
+                continue
             src = (
                 by_link.get(article.get("link"))
                 or by_title.get(article.get("title"))
@@ -254,7 +278,12 @@ Summary:"""
                 max_completion_tokens=4000 if is_reasoning_model(summarize_model) else 400,
             )
 
-            summary_text = summarize_response.choices[0].message.content.strip() if summarize_response.choices else ""
+            summary_text = (summarize_response.choices[0].message.content or "").strip() if summarize_response.choices else ""
+
+            # Clean up before the emptiness check: a reply of just "Summary:"
+            # is empty once its label is removed.
+            summary_text = re.sub(r'^[#*"\s]*(Summary:|Topic:|Articles:)\s*', '', summary_text)
+            summary_text = re.sub(r'\n+', ' ', summary_text).strip()
 
             # Debug logging
             logging.info(f"Summarization response for '{topic.get('topic')}': {len(summary_text)} chars")
@@ -264,10 +293,6 @@ Summary:"""
                 summary_text = f"A collection of {len(relevant_articles)} articles about {topic.get('topic')}."
             else:
                 logging.info(f"Summary preview: {summary_text[:100]}...")
-
-            # Clean up summary to remove any markdown formatting
-            summary_text = re.sub(r'^[#*"\s]*(Summary:|Topic:|Articles:)\s*', '', summary_text)
-            summary_text = re.sub(r'\n+', ' ', summary_text)
 
             topic["summary"] = summary_text
 

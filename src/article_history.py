@@ -24,27 +24,48 @@ class ArticleHistory:
         self.history = self._load_history()
 
     def _load_history(self):
-        """Load article history from file."""
-        if os.path.exists(self.history_file):
-            try:
-                with open(self.history_file, "r") as f:
-                    data = json.load(f)
-                    logging.info(f"Loaded article history with {len(data.get('articles', {}))} articles from {self.history_file}")
-                    return data
-            except Exception as e:
-                logging.error(f"Error loading article history: {e}")
-        else:
+        """
+        Load article history from file, falling back to the previous save.
+
+        An unreadable history must not load as empty: every article still in
+        the feeds would be posted again. If neither the file nor its .bak
+        loads, the file is set aside as .corrupt-<time> and loading raises.
+        """
+        if not os.path.exists(self.history_file):
             logging.info(f"Article history file {self.history_file} not found, creating new history")
-        return {"last_cleaned": datetime.now().isoformat(), "articles": {}}
+            return {"last_cleaned": datetime.now().isoformat(), "articles": {}}
+        for path in (self.history_file, self.history_file + ".bak"):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                if path != self.history_file:
+                    logging.error(f"Article history {self.history_file} unreadable; using backup {path}")
+                logging.info(f"Loaded article history with {len(data.get('articles', {}))} articles from {path}")
+                return data
+            except FileNotFoundError:
+                continue
+            except Exception as e:
+                logging.error(f"Error loading article history from {path}: {e}")
+        corrupt = f"{self.history_file}.corrupt-{datetime.now():%Y%m%dT%H%M%S}"
+        os.replace(self.history_file, corrupt)
+        raise RuntimeError(
+            f"Article history unreadable and no usable backup; set aside as {corrupt}. "
+            "Refusing to start with an empty history, which would repost every article."
+        )
 
     def _save_history(self):
-        """Save article history to file."""
+        """Save article history atomically, keeping the previous save as .bak."""
         try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
-
-            with open(self.history_file, "w") as f:
+            directory = os.path.dirname(self.history_file) or "."
+            os.makedirs(directory, exist_ok=True)
+            tmp = f"{self.history_file}.tmp"
+            with open(tmp, "w") as f:
                 json.dump(self.history, f)
+                f.flush()
+                os.fsync(f.fileno())
+            if os.path.exists(self.history_file):
+                os.replace(self.history_file, self.history_file + ".bak")
+            os.replace(tmp, self.history_file)
             logging.info(f"Saved article history with {len(self.history.get('articles', {}))} articles to {self.history_file}")
         except Exception as e:
             logging.error(f"Error saving article history: {e}")
@@ -75,38 +96,51 @@ class ArticleHistory:
             f"Cleaned article history. Retained {len(cleaned_articles)} articles."
         )
 
+    @staticmethod
+    def _key(article):
+        """History key: the link, or the title for an article without one."""
+        return article.get("link") or "title:" + (article.get("title") or "")
+
     def is_published(self, article):
         """
-        Check if an article has been published before.
+        Check if an article was published, or rejected in its current form.
+
+        A rejection is remembered with the title it had: when the outlet
+        updates the story under the same link (a location or toll added to an
+        early wire item), the changed title makes it eligible to be filtered
+        again.
 
         Parameters:
             article (dict): Article dictionary with at least 'link' key
 
         Returns:
-            bool: True if article was previously published
+            bool: True if the article should be skipped
         """
-        url = article.get("link", "")
-        is_pub = url in self.history["articles"]
-        if is_pub:
-            logging.debug(f"Article already published: {article.get('title', 'Untitled')}")
-        return is_pub
+        entry = self.history["articles"].get(self._key(article))
+        if entry is None:
+            return False
+        if entry.get("status") == "rejected" and entry.get("title", "") != article.get("title", ""):
+            logging.info(f"Rejected article changed, filtering again: {article.get('title', 'Untitled')}")
+            return False
+        logging.debug(f"Article already published: {article.get('title', 'Untitled')}")
+        return True
 
-    def mark_as_published(self, articles):
+    def mark_as_published(self, articles, status="published"):
         """
-        Mark articles as published.
+        Record articles as handled.
 
         Parameters:
             articles (list): List of article dictionaries with at least 'link' key
+            status (str): "published", or "rejected" for filter rejections
         """
         now = datetime.now().isoformat()
 
         for article in articles:
-            url = article.get("link", "")
-            if url:
-                self.history["articles"][url] = {
-                    "title": article.get("title", ""),
-                    "timestamp": now,
-                }
+            self.history["articles"][self._key(article)] = {
+                "title": article.get("title", ""),
+                "timestamp": now,
+                "status": status,
+            }
 
         logging.info(f"Marked {len(articles)} articles as published")
         self._save_history()

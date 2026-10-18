@@ -64,8 +64,16 @@ def fetch_feeds(rss_feed_urls):
 
             parsed_feed = feedparser.parse(feed_content)
             if parsed_feed.bozo:
-                logging.warning(f"Error parsing feed: {url}. Error: {parsed_feed.bozo_exception}")
-                continue
+                # bozo is also set for recoverable problems (a stray entity,
+                # an encoding override, a truncated tail) when entries still
+                # parsed; skip the feed only when nothing came through.
+                if not parsed_feed.entries:
+                    logging.warning(f"Error parsing feed: {url}. Error: {parsed_feed.bozo_exception}")
+                    continue
+                logging.warning(
+                    f"Feed {url} parsed with a recoverable error ({parsed_feed.bozo_exception}); "
+                    f"keeping {len(parsed_feed.entries)} entries."
+                )
 
             for entry in parsed_feed.entries:
                 articles.append({

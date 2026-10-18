@@ -10,30 +10,24 @@ def setup_logger():
     Returns:
         logger (logging.Logger): Configured logger instance.
     """
-    logger = logging.getLogger("RSSFeedMonitor")
-    logger.setLevel(logging.INFO)
-    
     # Create logs directory if it doesn't exist
     if not os.path.exists("logs"):
         os.makedirs("logs")
-    
-    # File handler for logging to a file
-    file_handler = logging.FileHandler("logs/app.log")
-    file_handler.setLevel(logging.INFO)
-    
-    # Console handler for logging to the console
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    
-    # Formatter to include timestamp, module, level, and message
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-    
-    # Add both handlers to the logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    
+
+    # Configure the root logger, not just the named one: every module logs
+    # through root `logging.info`. force=True replaces the default stderr
+    # handler that the first root logging call installs, which otherwise
+    # dropped module INFO lines and printed named-logger lines twice.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler("logs/app.log"), logging.StreamHandler()],
+        force=True,
+    )
+    logger = logging.getLogger("RSSFeedMonitor")
+    logger.setLevel(logging.INFO)
+    for h in list(logger.handlers):  # handlers from an earlier call would duplicate lines
+        logger.removeHandler(h)
     return logger
 
 
